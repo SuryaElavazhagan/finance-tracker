@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useAppData } from '../hooks/useAppData'
+import { usePrivacy } from '../hooks/usePrivacy'
 import { computeDebtMetrics } from '../store/storage'
-import { fmt, Card, ProgressBar, Badge, Button, LabeledInput, LabeledSelect, SectionTitle } from '../components/ui'
+import { fmtPrivate, fmt, Card, ProgressBar, Badge, Button, LabeledInput, LabeledSelect, SectionTitle } from '../components/ui'
 import { v4 } from '../utils/uuid'
 import { addDebt, updateDebt, addDebtRepayment } from '../store/storage'
 import type { Debt, DebtType, Currency } from '../types'
@@ -9,6 +10,7 @@ import { Plus, ChevronDown, ChevronUp } from 'lucide-react'
 
 export function DebtsView() {
   const { data, update } = useAppData()
+  const { hidden } = usePrivacy()
   const [showForm, setShowForm] = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [repayMonths, setRepayMonths] = useState<Record<string, string>>({})
@@ -23,6 +25,8 @@ export function DebtsView() {
   const totalINR = activeDebts
     .filter((d) => d.currency === 'INR')
     .reduce((s, d) => s + d.currentBalance, 0)
+
+  const p = (amount: number, currency: 'JPY' | 'INR') => fmtPrivate(amount, currency, hidden)
 
   function handleAddRepayment(debt: Debt) {
     const amount = Number(repayAmounts[debt.id]) || 0
@@ -61,11 +65,11 @@ export function DebtsView() {
       <div className="grid grid-cols-2 gap-3">
         <Card className="text-center">
           <p className="text-xs text-slate-500 mb-1">Total JPY outstanding</p>
-          <p className="text-base font-semibold text-slate-100">{fmt(totalJPY, 'JPY')}</p>
+          <p className="text-base font-semibold text-slate-100">{p(totalJPY, 'JPY')}</p>
         </Card>
         <Card className="text-center">
           <p className="text-xs text-slate-500 mb-1">Total INR outstanding</p>
-          <p className="text-base font-semibold text-slate-100">{fmt(totalINR, 'INR')}</p>
+          <p className="text-base font-semibold text-slate-100">{p(totalINR, 'INR')}</p>
         </Card>
       </div>
 
@@ -90,7 +94,7 @@ export function DebtsView() {
                   <Badge>{debt.currency}</Badge>
                 </div>
                 <p className="text-xs text-slate-400">
-                  {fmt(debt.currentBalance, debt.currency)} remaining of {fmt(debt.originalAmount, debt.currency)}
+                  {p(debt.currentBalance, debt.currency)} remaining of {p(debt.originalAmount, debt.currency)}
                 </p>
               </div>
               {isExpanded ? <ChevronUp size={16} className="text-slate-500 mt-1" /> : <ChevronDown size={16} className="text-slate-500 mt-1" />}
@@ -135,9 +139,9 @@ export function DebtsView() {
                     <div className="space-y-1 max-h-32 overflow-y-auto">
                       {[...history].sort((a, b) => b.month.localeCompare(a.month)).map((r, i) => (
                         <div key={i} className="flex justify-between text-xs text-slate-400">
-                          <span>{r.month}</span>
-                          <span>{fmt(r.amountPaid, debt.currency)}</span>
-                          <span className="text-slate-600">bal: {fmt(r.balanceAfter, debt.currency)}</span>
+                           <span>{r.month}</span>
+                           <span>{p(r.amountPaid, debt.currency)}</span>
+                           <span className="text-slate-600">bal: {p(r.balanceAfter, debt.currency)}</span>
                         </div>
                       ))}
                     </div>
@@ -159,7 +163,7 @@ export function DebtsView() {
                 <Badge variant="success">Cleared</Badge>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                Original: {fmt(debt.originalAmount, debt.currency)}
+                Original: {p(debt.originalAmount, debt.currency)}
               </p>
             </Card>
           ))}

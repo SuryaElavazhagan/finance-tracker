@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { AppProvider } from '../hooks/useAppData'
+import { PrivacyProvider } from '../hooks/usePrivacy'
 import { SummaryView } from '../views/SummaryView'
 import { DebtsView } from '../views/DebtsView'
 import { GoalsView } from '../views/GoalsView'
@@ -15,7 +16,7 @@ import {
 import type { Debt, Goal, Commitment } from '../types'
 
 function renderWithProvider(ui: React.ReactElement) {
-  return render(<AppProvider>{ui}</AppProvider>)
+  return render(<AppProvider><PrivacyProvider>{ui}</PrivacyProvider></AppProvider>)
 }
 
 function seedDebt(): Debt {

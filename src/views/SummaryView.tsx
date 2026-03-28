@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAppData } from '../hooks/useAppData'
+import { usePrivacy } from '../hooks/usePrivacy'
 import {
   getMonthSummary,
   formatMonth,
@@ -8,11 +9,12 @@ import {
   getLast3MonthsAvgDeposit,
   currentMonth,
 } from '../store/storage'
-import { fmt, Card, ProgressBar, MilestoneDots } from '../components/ui'
+import { fmt, fmtPrivate, Card, ProgressBar, MilestoneDots } from '../components/ui'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 export function SummaryView() {
   const { data } = useAppData()
+  const { hidden } = usePrivacy()
   const allMonths = Array.from(
     new Set([
       ...data.salary.map((s) => s.month),
@@ -31,6 +33,8 @@ export function SummaryView() {
   const activeDebts = data.debts.filter((d) => d.status === 'active')
   const activeGoals = data.goals.filter((g) => g.status === 'active')
   const now = currentMonth()
+
+  const m = (amount: number, currency: 'JPY' | 'INR') => fmtPrivate(amount, currency, hidden)
 
   return (
     <div className="max-w-lg mx-auto p-4 space-y-4">
@@ -58,15 +62,15 @@ export function SummaryView() {
       {/* JPY block */}
       <Card>
         <h3 className="text-sm font-semibold text-sky-400 mb-3">JPY</h3>
-        <Row label="Income" value={fmt(summary.jpyIncome, 'JPY')} />
-        <Row label="Recurring bills" value={`− ${fmt(summary.jpyCommitmentTotal, 'JPY')}`} sub />
-        <Row label="Debt repayments" value={`− ${fmt(summary.jpyDebtTotal, 'JPY')}`} sub />
-        <Row label="Remittance sent" value={`− ${fmt(summary.remittanceSent, 'JPY')}`} sub />
-        <Row label="Overall spend" value={`− ${fmt(summary.jpySpend, 'JPY')}`} sub />
+        <Row label="Income" value={m(summary.jpyIncome, 'JPY')} />
+        <Row label="Recurring bills" value={`− ${m(summary.jpyCommitmentTotal, 'JPY')}`} sub />
+        <Row label="Debt repayments" value={`− ${m(summary.jpyDebtTotal, 'JPY')}`} sub />
+        <Row label="Remittance sent" value={`− ${m(summary.remittanceSent, 'JPY')}`} sub />
+        <Row label="Overall spend" value={`− ${m(summary.jpySpend, 'JPY')}`} sub />
         <div className="border-t border-slate-700 my-2" />
         <Row
           label="Remaining"
-          value={fmt(Math.max(0, summary.jpyRemaining), 'JPY')}
+          value={m(Math.max(0, summary.jpyRemaining), 'JPY')}
           highlight={summary.jpyRemaining >= 0}
         />
       </Card>
@@ -74,14 +78,14 @@ export function SummaryView() {
       {/* INR block */}
       <Card>
         <h3 className="text-sm font-semibold text-violet-400 mb-3">INR</h3>
-        <Row label="Remittance received" value={fmt(summary.inrInflow, 'INR')} />
-        <Row label="Recurring bills" value={`− ${fmt(summary.inrCommitmentTotal, 'INR')}`} sub />
-        <Row label="Debt repayments" value={`− ${fmt(summary.inrDebtTotal, 'INR')}`} sub />
-        <Row label="Overall spend" value={`− ${fmt(summary.inrSpend, 'INR')}`} sub />
+        <Row label="Remittance received" value={m(summary.inrInflow, 'INR')} />
+        <Row label="Recurring bills" value={`− ${m(summary.inrCommitmentTotal, 'INR')}`} sub />
+        <Row label="Debt repayments" value={`− ${m(summary.inrDebtTotal, 'INR')}`} sub />
+        <Row label="Overall spend" value={`− ${m(summary.inrSpend, 'INR')}`} sub />
         <div className="border-t border-slate-700 my-2" />
         <Row
           label="Remaining"
-          value={fmt(Math.max(0, summary.inrRemaining), 'INR')}
+          value={m(Math.max(0, summary.inrRemaining), 'INR')}
           highlight={summary.inrRemaining >= 0}
         />
       </Card>
@@ -92,18 +96,18 @@ export function SummaryView() {
           <h3 className="text-sm font-semibold text-amber-400 mb-3">Debts outstanding</h3>
           <div className="space-y-3">
             {activeDebts.map((debt) => {
-              const m = computeDebtMetrics(debt)
+              const dm = computeDebtMetrics(debt)
               return (
                 <div key={debt.id}>
                   <div className="flex justify-between text-sm mb-1">
                     <span className="text-slate-300">{debt.name}</span>
-                    <span className="text-slate-400">{fmt(debt.currentBalance, debt.currency)}</span>
+                    <span className="text-slate-400">{m(debt.currentBalance, debt.currency)}</span>
                   </div>
-                  <ProgressBar percent={m.percentPaid} />
+                  <ProgressBar percent={dm.percentPaid} />
                   <div className="flex justify-between text-xs text-slate-500 mt-1">
-                    <span>{Math.round(m.percentPaid)}% paid off</span>
-                    {m.monthsToClear !== null && (
-                      <span>~{m.monthsToClear} mo to clear (est.)</span>
+                    <span>{Math.round(dm.percentPaid)}% paid off</span>
+                    {dm.monthsToClear !== null && (
+                      <span>~{dm.monthsToClear} mo to clear (est.)</span>
                     )}
                   </div>
                 </div>
@@ -120,21 +124,21 @@ export function SummaryView() {
           <div className="space-y-3">
             {activeGoals.map((goal) => {
               const avg = getLast3MonthsAvgDeposit(data, goal.id, now)
-              const m = computeGoalMetrics(goal, avg)
+              const gm = computeGoalMetrics(goal, avg)
               return (
                 <div key={goal.id}>
                   <div className="flex justify-between text-sm mb-1">
                     <span className="text-slate-300">{goal.name}</span>
                     <span className="text-slate-400">
-                      {fmt(goal.currentAmount, goal.currency)} / {fmt(goal.targetAmount, goal.currency)}
+                      {m(goal.currentAmount, goal.currency)} / {m(goal.targetAmount, goal.currency)}
                     </span>
                   </div>
-                  <ProgressBar percent={m.percentComplete} />
-                  <MilestoneDots percent={m.percentComplete} />
+                  <ProgressBar percent={gm.percentComplete} />
+                  <MilestoneDots percent={gm.percentComplete} />
                   <div className="flex justify-between text-xs text-slate-500 mt-1">
-                    <span>{Math.round(m.percentComplete)}% complete</span>
-                    {m.estimatedMonths !== null && (
-                      <span>~{m.estimatedMonths} mo to target (est.)</span>
+                    <span>{Math.round(gm.percentComplete)}% complete</span>
+                    {gm.estimatedMonths !== null && (
+                      <span>~{gm.estimatedMonths} mo to target (est.)</span>
                     )}
                   </div>
                 </div>

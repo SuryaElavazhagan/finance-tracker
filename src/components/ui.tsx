@@ -7,6 +7,12 @@ export function fmt(amount: number, currency: Currency): string {
   return '₹' + Math.round(amount).toLocaleString('en-IN')
 }
 
+/** Returns masked placeholder when privacy mode is on */
+export function fmtPrivate(amount: number, currency: Currency, hidden: boolean): string {
+  if (hidden) return currency === 'JPY' ? '¥ ••••' : '₹ ••••'
+  return fmt(amount, currency)
+}
+
 interface ProgressBarProps {
   percent: number
   className?: string

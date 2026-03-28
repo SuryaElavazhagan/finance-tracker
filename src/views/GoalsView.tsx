@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useAppData } from '../hooks/useAppData'
+import { usePrivacy } from '../hooks/usePrivacy'
 import { computeGoalMetrics, getLast3MonthsAvgDeposit, currentMonth } from '../store/storage'
-import { fmt, Card, ProgressBar, MilestoneDots, Badge, Button, LabeledInput, LabeledSelect, SectionTitle } from '../components/ui'
+import { fmtPrivate, Card, ProgressBar, MilestoneDots, Badge, Button, LabeledInput, LabeledSelect, SectionTitle } from '../components/ui'
 import { addGoal, updateGoal, addGoalDeposit } from '../store/storage'
 import { v4 } from '../utils/uuid'
 import type { Goal, Currency, GoalStatus } from '../types'
@@ -9,6 +10,7 @@ import { Plus, ChevronDown, ChevronUp } from 'lucide-react'
 
 export function GoalsView() {
   const { data, update } = useAppData()
+  const { hidden } = usePrivacy()
   const [showForm, setShowForm] = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [depositAmounts, setDepositAmounts] = useState<Record<string, string>>({})
@@ -24,6 +26,8 @@ export function GoalsView() {
   const totalINR = activeGoals
     .filter((g) => g.currency === 'INR')
     .reduce((s, g) => s + g.currentAmount, 0)
+
+  const p = (amount: number, currency: 'JPY' | 'INR') => fmtPrivate(amount, currency, hidden)
 
   function handleDeposit(goal: Goal) {
     const amount = Number(depositAmounts[goal.id]) || 0
@@ -63,11 +67,11 @@ export function GoalsView() {
       <div className="grid grid-cols-2 gap-3">
         <Card className="text-center">
           <p className="text-xs text-slate-500 mb-1">Total JPY saved</p>
-          <p className="text-base font-semibold text-slate-100">{fmt(totalJPY, 'JPY')}</p>
+          <p className="text-base font-semibold text-slate-100">{p(totalJPY, 'JPY')}</p>
         </Card>
         <Card className="text-center">
           <p className="text-xs text-slate-500 mb-1">Total INR saved</p>
-          <p className="text-base font-semibold text-slate-100">{fmt(totalINR, 'INR')}</p>
+          <p className="text-base font-semibold text-slate-100">{p(totalINR, 'INR')}</p>
         </Card>
       </div>
 
@@ -93,7 +97,7 @@ export function GoalsView() {
                   <Badge>{goal.currency}</Badge>
                 </div>
                 <p className="text-xs text-slate-400">
-                  {fmt(goal.currentAmount, goal.currency)} of {fmt(goal.targetAmount, goal.currency)}
+                  {p(goal.currentAmount, goal.currency)} of {p(goal.targetAmount, goal.currency)}
                 </p>
               </div>
               {isExpanded ? <ChevronUp size={16} className="text-slate-500 mt-1" /> : <ChevronDown size={16} className="text-slate-500 mt-1" />}
@@ -139,7 +143,7 @@ export function GoalsView() {
                       {[...history].sort((a, b) => b.month.localeCompare(a.month)).map((d, i) => (
                         <div key={i} className="flex justify-between text-xs text-slate-400">
                           <span>{d.month}</span>
-                          <span>+{fmt(d.amount, goal.currency)}</span>
+                          <span>+{p(d.amount, goal.currency)}</span>
                         </div>
                       ))}
                     </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AppProvider } from './hooks/useAppData'
+import { PrivacyProvider, usePrivacy } from './hooks/usePrivacy'
 import { CheckInView } from './views/CheckInView'
 import { SummaryView } from './views/SummaryView'
 import { DebtsView } from './views/DebtsView'
@@ -15,6 +16,8 @@ import {
   TrendingUp,
   Settings,
   HardDrive,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 
 type Tab = 'summary' | 'checkin' | 'debts' | 'goals' | 'trends' | 'settings' | 'backup'
@@ -31,18 +34,26 @@ const TABS: { id: Tab; label: string; Icon: React.ElementType }[] = [
 
 function AppContent() {
   const [tab, setTab] = useState<Tab>('summary')
+  const { hidden, toggle } = usePrivacy()
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col">
-      <header className="sticky top-0 z-10 bg-slate-900 border-b border-slate-800 px-4 py-3 safe-top">
+      <header className="sticky top-0 z-10 bg-slate-900 border-b border-slate-800 px-4 py-3 safe-top flex items-center justify-between">
         <h1 className="text-base font-semibold text-slate-100 tracking-tight">
           Finance Tracker
         </h1>
+        <button
+          onClick={toggle}
+          aria-label={hidden ? 'Show amounts' : 'Hide amounts'}
+          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors"
+        >
+          {hidden ? <Eye size={18} /> : <EyeOff size={18} />}
+        </button>
       </header>
 
       <main className="flex-1 overflow-y-auto pb-24">
-        {tab === 'checkin' && <CheckInView />}
         {tab === 'summary' && <SummaryView />}
+        {tab === 'checkin' && <CheckInView />}
         {tab === 'debts' && <DebtsView />}
         {tab === 'goals' && <GoalsView />}
         {tab === 'trends' && <TrendsView />}
@@ -75,7 +86,9 @@ function AppContent() {
 export default function App() {
   return (
     <AppProvider>
-      <AppContent />
+      <PrivacyProvider>
+        <AppContent />
+      </PrivacyProvider>
     </AppProvider>
   )
 }

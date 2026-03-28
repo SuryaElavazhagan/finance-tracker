@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAppData } from '../hooks/useAppData'
+import { usePrivacy } from '../hooks/usePrivacy'
 import {
   upsertSalary,
   upsertRemittance,
@@ -11,7 +12,7 @@ import {
   currentMonth,
   formatMonth,
 } from '../store/storage'
-import { fmt, LabeledInput, Button, Card, ProgressBar } from '../components/ui'
+import { fmtPrivate, LabeledInput, Button, Card, ProgressBar } from '../components/ui'
 import type { CommitmentRecord, DebtRepayment, GoalDeposit } from '../types'
 
 const STEPS = [
@@ -26,8 +27,11 @@ const STEPS = [
 
 export function CheckInView() {
   const { data, update } = useAppData()
+  const { hidden } = usePrivacy()
   const month = currentMonth()
   const [step, setStep] = useState(0)
+
+  const p = (amount: number, currency: 'JPY' | 'INR') => fmtPrivate(amount, currency, hidden)
 
   // Step state
   const [salaryJPY, setSalaryJPY] = useState(
@@ -334,15 +338,15 @@ export function CheckInView() {
             <h3 className="text-sm font-medium text-slate-400 mb-3">
               JPY — {formatMonth(month)}
             </h3>
-            <SummaryRow label="Income" value={fmt(summary.jpyIncome, 'JPY')} />
-            <SummaryRow label="Recurring bills" value={`− ${fmt(summary.jpyCommitmentTotal, 'JPY')}`} indent />
-            <SummaryRow label="Debt repayments" value={`− ${fmt(summary.jpyDebtTotal, 'JPY')}`} indent />
-            <SummaryRow label="Remittance sent" value={`− ${fmt(summary.remittanceSent, 'JPY')}`} indent />
-            <SummaryRow label="Overall spend" value={`− ${fmt(summary.jpySpend, 'JPY')}`} indent />
+            <SummaryRow label="Income" value={p(summary.jpyIncome, 'JPY')} />
+            <SummaryRow label="Recurring bills" value={`− ${p(summary.jpyCommitmentTotal, 'JPY')}`} indent />
+            <SummaryRow label="Debt repayments" value={`− ${p(summary.jpyDebtTotal, 'JPY')}`} indent />
+            <SummaryRow label="Remittance sent" value={`− ${p(summary.remittanceSent, 'JPY')}`} indent />
+            <SummaryRow label="Overall spend" value={`− ${p(summary.jpySpend, 'JPY')}`} indent />
             <div className="border-t border-slate-700 my-2" />
             <SummaryRow
               label="Remaining (saved)"
-              value={fmt(Math.max(0, summary.jpyRemaining), 'JPY')}
+              value={p(Math.max(0, summary.jpyRemaining), 'JPY')}
               highlight
             />
           </Card>
@@ -350,14 +354,14 @@ export function CheckInView() {
             <h3 className="text-sm font-medium text-slate-400 mb-3">
               INR — {formatMonth(month)}
             </h3>
-            <SummaryRow label="Inflow (remittance)" value={fmt(summary.inrInflow, 'INR')} />
-            <SummaryRow label="Recurring bills" value={`− ${fmt(summary.inrCommitmentTotal, 'INR')}`} indent />
-            <SummaryRow label="Debt repayments" value={`− ${fmt(summary.inrDebtTotal, 'INR')}`} indent />
-            <SummaryRow label="Overall spend" value={`− ${fmt(summary.inrSpend, 'INR')}`} indent />
+            <SummaryRow label="Inflow (remittance)" value={p(summary.inrInflow, 'INR')} />
+            <SummaryRow label="Recurring bills" value={`− ${p(summary.inrCommitmentTotal, 'INR')}`} indent />
+            <SummaryRow label="Debt repayments" value={`− ${p(summary.inrDebtTotal, 'INR')}`} indent />
+            <SummaryRow label="Overall spend" value={`− ${p(summary.inrSpend, 'INR')}`} indent />
             <div className="border-t border-slate-700 my-2" />
             <SummaryRow
               label="Remaining (saved)"
-              value={fmt(Math.max(0, summary.inrRemaining), 'INR')}
+              value={p(Math.max(0, summary.inrRemaining), 'INR')}
               highlight
             />
           </Card>

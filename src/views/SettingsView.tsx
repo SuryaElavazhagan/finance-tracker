@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAppData } from '../hooks/useAppData'
+import { usePrivacy } from '../hooks/usePrivacy'
 import {
   addCommitment,
   updateCommitment,
@@ -7,7 +8,7 @@ import {
   updateSettings,
 } from '../store/storage'
 import {
-  fmt,
+  fmtPrivate,
   Card,
   Badge,
   Button,
@@ -21,6 +22,7 @@ import { Plus, Trash2, Pencil } from 'lucide-react'
 
 export function SettingsView() {
   const { data, update } = useAppData()
+  const { hidden } = usePrivacy()
   const [showCommitmentForm, setShowCommitmentForm] = useState(false)
   const [editingCommitment, setEditingCommitment] = useState<Commitment | null>(null)
   const [defaultRemittance, setDefaultRemittance] = useState(
@@ -53,7 +55,7 @@ export function SettingsView() {
           <Button onClick={saveDefaultRemittance}>Save</Button>
         </div>
         <p className="text-xs text-slate-500">
-          Current: {fmt(data.settings.defaultRemittanceJPY, 'JPY')} — pre-filled each check-in.
+          Current: {fmtPrivate(data.settings.defaultRemittanceJPY, 'JPY', hidden)} — pre-filled each check-in.
         </p>
       </Card>
 
@@ -97,7 +99,7 @@ export function SettingsView() {
                   <Badge variant="muted">{c.category}</Badge>
                   {!c.active && <Badge variant="muted">paused</Badge>}
                 </div>
-                <p className="text-xs text-slate-500">{fmt(c.defaultAmount, c.currency)} / month</p>
+                <p className="text-xs text-slate-500">{fmtPrivate(c.defaultAmount, c.currency, hidden)} / month</p>
               </div>
               <button
                 onClick={() => setEditingCommitment(c)}
