@@ -4,7 +4,7 @@ import { usePrivacy } from '../hooks/usePrivacy'
 import { computeDebtMetrics } from '../store/storage'
 import { fmtPrivate, Card, ProgressBar, Badge, Button, LabeledInput, LabeledSelect, SectionTitle } from '../components/ui'
 import { v4 } from '../utils/uuid'
-import { addDebt, updateDebt, addDebtRepayment } from '../store/storage'
+import { addDebt, updateDebt, upsertDebtRepayment } from '../store/storage'
 import type { Debt, DebtType, Currency } from '../types'
 import { Plus, ChevronDown, ChevronUp } from 'lucide-react'
 
@@ -33,7 +33,7 @@ export function DebtsView() {
     const month = repayMonths[debt.id] || new Date().toISOString().slice(0, 7)
     if (amount <= 0) return
     const balanceAfter = Math.max(0, debt.currentBalance - amount)
-    let next = addDebtRepayment(data, { month, debtId: debt.id, amountPaid: amount, balanceAfter })
+    let next = upsertDebtRepayment(data, { month, debtId: debt.id, amountPaid: amount, balanceAfter })
     if (balanceAfter === 0) {
       next = updateDebt(next, { ...debt, currentBalance: 0, status: 'cleared' })
     }

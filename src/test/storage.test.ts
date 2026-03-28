@@ -15,13 +15,13 @@ import {
   getCommitmentRecordsForMonth,
   addDebt,
   updateDebt,
-  addDebtRepayment,
+  upsertDebtRepayment,
   getDebtRepaymentsForMonth,
   upsertMonthlySpend,
   getMonthlySpendForMonth,
   addGoal,
   updateGoal,
-  addGoalDeposit,
+  upsertGoalDeposit,
   getGoalDepositsForGoal,
   updateSettings,
   importData,
@@ -258,25 +258,34 @@ describe('updateDebt', () => {
   })
 })
 
-describe('addDebtRepayment', () => {
-  it('adds a repayment and updates current balance on the debt', () => {
+describe('upsertDebtRepayment', () => {
+  it('adds a repayment and recomputes current balance from originalAmount', () => {
     let data = addDebt(makeData(), DEBT)
-    data = addDebtRepayment(data, {
+    data = upsertDebtRepayment(data, {
       month: '2025-01',
       debtId: 'd1',
       amountPaid: 10000,
-      balanceAfter: 30000,
+      balanceAfter: 0, // ignored — balance recomputed from originalAmount
     })
     expect(data.debtRepayments).toHaveLength(1)
-    expect(data.debts[0].currentBalance).toBe(30000)
+    expect(data.debts[0].currentBalance).toBe(70000) // 80000 - 10000
+  })
+
+  it('replaces an existing repayment for the same debt+month', () => {
+    let data = addDebt(makeData(), DEBT)
+    data = upsertDebtRepayment(data, { month: '2025-01', debtId: 'd1', amountPaid: 10000, balanceAfter: 0 })
+    data = upsertDebtRepayment(data, { month: '2025-01', debtId: 'd1', amountPaid: 15000, balanceAfter: 0 })
+    expect(data.debtRepayments).toHaveLength(1)
+    expect(data.debtRepayments[0].amountPaid).toBe(15000)
+    expect(data.debts[0].currentBalance).toBe(65000) // 80000 - 15000
   })
 })
 
 describe('getDebtRepaymentsForMonth', () => {
   it('returns repayments for the given month only', () => {
     let data = addDebt(makeData(), DEBT)
-    data = addDebtRepayment(data, { month: '2025-01', debtId: 'd1', amountPaid: 10000, balanceAfter: 30000 })
-    data = addDebtRepayment(data, { month: '2025-02', debtId: 'd1', amountPaid: 10000, balanceAfter: 20000 })
+    data = upsertDebtRepayment(data, { month: '2025-01', debtId: 'd1', amountPaid: 10000, balanceAfter: 0 })
+    data = upsertDebtRepayment(data, { month: '2025-02', debtId: 'd1', amountPaid: 10000, balanceAfter: 0 })
     expect(getDebtRepaymentsForMonth(data, '2025-01')).toHaveLength(1)
     expect(getDebtRepaymentsForMonth(data, '2025-02')).toHaveLength(1)
     expect(getDebtRepaymentsForMonth(data, '2025-03')).toHaveLength(0)
@@ -328,19 +337,27 @@ describe('updateGoal', () => {
   })
 })
 
-describe('addGoalDeposit', () => {
-  it('adds a deposit and increases currentAmount on the goal', () => {
+describe('upsertGoalDeposit', () => {
+  it('adds a deposit and sets currentAmount from total deposits', () => {
     let data = addGoal(makeData(), GOAL)
-    data = addGoalDeposit(data, { month: '2025-01', goalId: 'g1', amount: 20000 })
+    data = upsertGoalDeposit(data, { month: '2025-01', goalId: 'g1', amount: 20000 })
     expect(data.goalDeposits).toHaveLength(1)
-    expect(data.goals[0].currentAmount).toBe(120000)
+    expect(data.goals[0].currentAmount).toBe(20000)
   })
 
-  it('accumulates multiple deposits', () => {
+  it('replaces deposit for same goal+month instead of accumulating', () => {
     let data = addGoal(makeData(), GOAL)
-    data = addGoalDeposit(data, { month: '2025-01', goalId: 'g1', amount: 20000 })
-    data = addGoalDeposit(data, { month: '2025-02', goalId: 'g1', amount: 30000 })
-    expect(data.goals[0].currentAmount).toBe(150000)
+    data = upsertGoalDeposit(data, { month: '2025-01', goalId: 'g1', amount: 20000 })
+    data = upsertGoalDeposit(data, { month: '2025-01', goalId: 'g1', amount: 35000 })
+    expect(data.goalDeposits).toHaveLength(1)
+    expect(data.goals[0].currentAmount).toBe(35000)
+  })
+
+  it('accumulates deposits across different months', () => {
+    let data = addGoal(makeData(), GOAL)
+    data = upsertGoalDeposit(data, { month: '2025-01', goalId: 'g1', amount: 20000 })
+    data = upsertGoalDeposit(data, { month: '2025-02', goalId: 'g1', amount: 30000 })
+    expect(data.goals[0].currentAmount).toBe(50000)
   })
 })
 
@@ -348,8 +365,8 @@ describe('getGoalDepositsForGoal', () => {
   it('returns deposits for the given goal only', () => {
     const g2: Goal = { ...GOAL, id: 'g2', name: 'Laptop' }
     let data = addGoal(addGoal(makeData(), GOAL), g2)
-    data = addGoalDeposit(data, { month: '2025-01', goalId: 'g1', amount: 20000 })
-    data = addGoalDeposit(data, { month: '2025-01', goalId: 'g2', amount: 5000 })
+    data = upsertGoalDeposit(data, { month: '2025-01', goalId: 'g1', amount: 20000 })
+    data = upsertGoalDeposit(data, { month: '2025-01', goalId: 'g2', amount: 5000 })
     expect(getGoalDepositsForGoal(data, 'g1')).toHaveLength(1)
     expect(getGoalDepositsForGoal(data, 'g2')).toHaveLength(1)
   })
@@ -497,9 +514,9 @@ describe('getLast3MonthsAvgDeposit', () => {
 
   it('averages the last 3 months before the current month', () => {
     let data = addGoal(makeData(), GOAL)
-    data = addGoalDeposit(data, { month: '2025-01', goalId: 'g1', amount: 20000 })
-    data = addGoalDeposit(data, { month: '2025-02', goalId: 'g1', amount: 30000 })
-    data = addGoalDeposit(data, { month: '2025-03', goalId: 'g1', amount: 10000 })
+    data = upsertGoalDeposit(data, { month: '2025-01', goalId: 'g1', amount: 20000 })
+    data = upsertGoalDeposit(data, { month: '2025-02', goalId: 'g1', amount: 30000 })
+    data = upsertGoalDeposit(data, { month: '2025-03', goalId: 'g1', amount: 10000 })
     // current is '2025-04', so all 3 are included
     const avg = getLast3MonthsAvgDeposit(data, 'g1', '2025-04')
     expect(avg).toBeCloseTo(20000) // (20000+30000+10000)/3
@@ -507,8 +524,8 @@ describe('getLast3MonthsAvgDeposit', () => {
 
   it('excludes the current month from the average', () => {
     let data = addGoal(makeData(), GOAL)
-    data = addGoalDeposit(data, { month: '2025-03', goalId: 'g1', amount: 30000 })
-    data = addGoalDeposit(data, { month: '2025-04', goalId: 'g1', amount: 99999 }) // current
+    data = upsertGoalDeposit(data, { month: '2025-03', goalId: 'g1', amount: 30000 })
+    data = upsertGoalDeposit(data, { month: '2025-04', goalId: 'g1', amount: 99999 }) // current
     const avg = getLast3MonthsAvgDeposit(data, 'g1', '2025-04')
     expect(avg).toBe(30000)
   })

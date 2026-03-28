@@ -3,7 +3,7 @@ import { useAppData } from '../hooks/useAppData'
 import { usePrivacy } from '../hooks/usePrivacy'
 import { computeGoalMetrics, getLast3MonthsAvgDeposit, currentMonth } from '../store/storage'
 import { fmtPrivate, Card, ProgressBar, MilestoneDots, Badge, Button, LabeledInput, LabeledSelect, SectionTitle } from '../components/ui'
-import { addGoal, updateGoal, addGoalDeposit } from '../store/storage'
+import { addGoal, updateGoal, upsertGoalDeposit } from '../store/storage'
 import { v4 } from '../utils/uuid'
 import type { Goal, Currency, GoalStatus } from '../types'
 import { Plus, ChevronDown, ChevronUp } from 'lucide-react'
@@ -33,7 +33,7 @@ export function GoalsView() {
     const amount = Number(depositAmounts[goal.id]) || 0
     const depMonth = depositMonths[goal.id] || month
     if (amount <= 0) return
-    let next = addGoalDeposit(data, { month: depMonth, goalId: goal.id, amount })
+    let next = upsertGoalDeposit(data, { month: depMonth, goalId: goal.id, amount })
     if (next.goals.find((g) => g.id === goal.id)!.currentAmount >= goal.targetAmount) {
       next = updateGoal(next, {
         ...next.goals.find((g) => g.id === goal.id)!,

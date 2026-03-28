@@ -149,14 +149,27 @@ export function updateDebt(data: AppData, debt: Debt): AppData {
   }
 }
 
-export function addDebtRepayment(data: AppData, repayment: DebtRepayment): AppData {
-  // Also update current balance on the debt
-  const debts = data.debts.map((d) =>
-    d.id === repayment.debtId
-      ? { ...d, currentBalance: repayment.balanceAfter }
-      : d,
+export function upsertDebtRepayment(data: AppData, repayment: DebtRepayment): AppData {
+  // One record per (debtId, month) — replace if exists
+  const existing = data.debtRepayments.findIndex(
+    (r) => r.debtId === repayment.debtId && r.month === repayment.month,
   )
-  return { ...data, debts, debtRepayments: [...data.debtRepayments, repayment] }
+  const debtRepayments =
+    existing >= 0
+      ? data.debtRepayments.map((r, i) => (i === existing ? repayment : r))
+      : [...data.debtRepayments, repayment]
+
+  // Recompute currentBalance from originalAmount minus all repayments for this debt
+  const debt = data.debts.find((d) => d.id === repayment.debtId)!
+  const totalPaid = debtRepayments
+    .filter((r) => r.debtId === repayment.debtId)
+    .reduce((sum, r) => sum + r.amountPaid, 0)
+  const newBalance = Math.max(0, debt.originalAmount - totalPaid)
+  const debts = data.debts.map((d) =>
+    d.id === repayment.debtId ? { ...d, currentBalance: newBalance } : d,
+  )
+
+  return { ...data, debts, debtRepayments }
 }
 
 export function getDebtRepaymentsForMonth(
@@ -197,14 +210,25 @@ export function updateGoal(data: AppData, goal: Goal): AppData {
   }
 }
 
-export function addGoalDeposit(data: AppData, deposit: GoalDeposit): AppData {
-  // Also update currentAmount on the goal
-  const goals = data.goals.map((g) =>
-    g.id === deposit.goalId
-      ? { ...g, currentAmount: g.currentAmount + deposit.amount }
-      : g,
+export function upsertGoalDeposit(data: AppData, deposit: GoalDeposit): AppData {
+  // One record per (goalId, month) — replace if exists
+  const existing = data.goalDeposits.findIndex(
+    (d) => d.goalId === deposit.goalId && d.month === deposit.month,
   )
-  return { ...data, goals, goalDeposits: [...data.goalDeposits, deposit] }
+  const goalDeposits =
+    existing >= 0
+      ? data.goalDeposits.map((d, i) => (i === existing ? deposit : d))
+      : [...data.goalDeposits, deposit]
+
+  // Recompute currentAmount from all deposits for this goal
+  const newAmount = goalDeposits
+    .filter((d) => d.goalId === deposit.goalId)
+    .reduce((sum, d) => sum + d.amount, 0)
+  const goals = data.goals.map((g) =>
+    g.id === deposit.goalId ? { ...g, currentAmount: newAmount } : g,
+  )
+
+  return { ...data, goals, goalDeposits }
 }
 
 export function getGoalDepositsForGoal(data: AppData, goalId: string): GoalDeposit[] {

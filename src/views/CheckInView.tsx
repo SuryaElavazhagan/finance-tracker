@@ -5,9 +5,9 @@ import {
   upsertSalary,
   upsertRemittance,
   upsertCommitmentRecord,
-  addDebtRepayment,
+  upsertDebtRepayment,
   upsertMonthlySpend,
-  addGoalDeposit,
+  upsertGoalDeposit,
   getMonthSummary,
   currentMonth,
   formatMonth,
@@ -83,8 +83,14 @@ export function CheckInView() {
   const [spendINR, setSpendINR] = useState(String(existingSpend?.spendINR ?? ''))
 
   const activeGoals = data.goals.filter((g) => g.status === 'active')
+  const existingGoalDeposits = data.goalDeposits.filter((d) => d.month === month)
   const [goalDeposits, setGoalDeposits] = useState<Record<string, string>>(
-    Object.fromEntries(activeGoals.map((g) => [g.id, ''])),
+    Object.fromEntries(
+      activeGoals.map((g) => {
+        const existing = existingGoalDeposits.find((d) => d.goalId === g.id)
+        return [g.id, String(existing?.amount ?? '')]
+      }),
+    ),
   )
 
   function saveStep() {
@@ -107,16 +113,13 @@ export function CheckInView() {
     } else if (step === 2) {
       activeDebts.forEach((d) => {
         const amount = Number(debtAmounts[d.id]) || 0
-        if (amount > 0) {
-          const balanceAfter = Math.max(0, d.currentBalance - amount)
-          const repayment: DebtRepayment = {
-            month,
-            debtId: d.id,
-            amountPaid: amount,
-            balanceAfter,
-          }
-          next = addDebtRepayment(next, repayment)
+        const repayment: DebtRepayment = {
+          month,
+          debtId: d.id,
+          amountPaid: amount,
+          balanceAfter: Math.max(0, d.currentBalance - amount),
         }
+        next = upsertDebtRepayment(next, repayment)
       })
     } else if (step === 3) {
       if (remittanceJPY || remittanceINR) {
@@ -137,14 +140,12 @@ export function CheckInView() {
     } else if (step === 5) {
       activeGoals.forEach((g) => {
         const amount = Number(goalDeposits[g.id]) || 0
-        if (amount > 0) {
-          const deposit: GoalDeposit = {
-            month,
-            goalId: g.id,
-            amount,
-          }
-          next = addGoalDeposit(next, deposit)
+        const deposit: GoalDeposit = {
+          month,
+          goalId: g.id,
+          amount,
         }
+        next = upsertGoalDeposit(next, deposit)
       })
     }
 
