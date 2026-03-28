@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:badge": "vitest run --reporter=json --outputFile=test-results.json; node scripts/make-badge.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.7.0",
