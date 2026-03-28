@@ -1,7 +1,14 @@
 import { useState } from 'react'
 import { useAppData } from '../hooks/useAppData'
-import { getMonthSummary, formatMonth } from '../store/storage'
-import { fmt, Card } from '../components/ui'
+import {
+  getMonthSummary,
+  formatMonth,
+  computeDebtMetrics,
+  computeGoalMetrics,
+  getLast3MonthsAvgDeposit,
+  currentMonth,
+} from '../store/storage'
+import { fmt, Card, ProgressBar, MilestoneDots } from '../components/ui'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 export function SummaryView() {
@@ -20,6 +27,10 @@ export function SummaryView() {
   const [idx, setIdx] = useState(0)
   const month = months[idx] ?? currentM
   const summary = getMonthSummary(data, month)
+
+  const activeDebts = data.debts.filter((d) => d.status === 'active')
+  const activeGoals = data.goals.filter((g) => g.status === 'active')
+  const now = currentMonth()
 
   return (
     <div className="max-w-lg mx-auto p-4 space-y-4">
@@ -74,6 +85,64 @@ export function SummaryView() {
           highlight={summary.inrRemaining >= 0}
         />
       </Card>
+
+      {/* Debts outstanding */}
+      {activeDebts.length > 0 && (
+        <Card>
+          <h3 className="text-sm font-semibold text-amber-400 mb-3">Debts outstanding</h3>
+          <div className="space-y-3">
+            {activeDebts.map((debt) => {
+              const m = computeDebtMetrics(debt)
+              return (
+                <div key={debt.id}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-slate-300">{debt.name}</span>
+                    <span className="text-slate-400">{fmt(debt.currentBalance, debt.currency)}</span>
+                  </div>
+                  <ProgressBar percent={m.percentPaid} />
+                  <div className="flex justify-between text-xs text-slate-500 mt-1">
+                    <span>{Math.round(m.percentPaid)}% paid off</span>
+                    {m.monthsToClear !== null && (
+                      <span>~{m.monthsToClear} mo to clear (est.)</span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      )}
+
+      {/* Goals progress */}
+      {activeGoals.length > 0 && (
+        <Card>
+          <h3 className="text-sm font-semibold text-emerald-400 mb-3">Goals progress</h3>
+          <div className="space-y-3">
+            {activeGoals.map((goal) => {
+              const avg = getLast3MonthsAvgDeposit(data, goal.id, now)
+              const m = computeGoalMetrics(goal, avg)
+              return (
+                <div key={goal.id}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-slate-300">{goal.name}</span>
+                    <span className="text-slate-400">
+                      {fmt(goal.currentAmount, goal.currency)} / {fmt(goal.targetAmount, goal.currency)}
+                    </span>
+                  </div>
+                  <ProgressBar percent={m.percentComplete} />
+                  <MilestoneDots percent={m.percentComplete} />
+                  <div className="flex justify-between text-xs text-slate-500 mt-1">
+                    <span>{Math.round(m.percentComplete)}% complete</span>
+                    {m.estimatedMonths !== null && (
+                      <span>~{m.estimatedMonths} mo to target (est.)</span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      )}
     </div>
   )
 }

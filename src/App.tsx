@@ -17,11 +17,11 @@ import {
   HardDrive,
 } from 'lucide-react'
 
-type Tab = 'checkin' | 'summary' | 'debts' | 'goals' | 'trends' | 'settings' | 'backup'
+type Tab = 'summary' | 'checkin' | 'debts' | 'goals' | 'trends' | 'settings' | 'backup'
 
 const TABS: { id: Tab; label: string; Icon: React.ElementType }[] = [
-  { id: 'checkin', label: 'Check-in', Icon: ClipboardList },
   { id: 'summary', label: 'Summary', Icon: LayoutDashboard },
+  { id: 'checkin', label: 'Check-in', Icon: ClipboardList },
   { id: 'debts', label: 'Debts', Icon: CreditCard },
   { id: 'goals', label: 'Goals', Icon: Target },
   { id: 'trends', label: 'Trends', Icon: TrendingUp },
@@ -30,7 +30,7 @@ const TABS: { id: Tab; label: string; Icon: React.ElementType }[] = [
 ]
 
 function AppContent() {
-  const [tab, setTab] = useState<Tab>('checkin')
+  const [tab, setTab] = useState<Tab>('summary')
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col">
