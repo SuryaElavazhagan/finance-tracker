@@ -9,7 +9,7 @@ import {
   getLast3MonthsAvgDeposit,
   currentMonth,
 } from '../store/storage'
-import { fmt, fmtPrivate, Card, ProgressBar, MilestoneDots } from '../components/ui'
+import { fmtPrivate, Card, ProgressBar, MilestoneDots } from '../components/ui'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 export function SummaryView() {
