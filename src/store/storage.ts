@@ -50,10 +50,42 @@ export function loadData(): AppData {
       openingBalanceINR: 0,
       ...(parsed.settings as Partial<Settings>),
     }
-    return { ...parsed, settings }
+    // Auto-repair: deduplicate debt repayments — one record per (debtId, month).
+    // If duplicates exist (from old check-in bug), keep the last entry (most recent write).
+    const debtRepayments = deduplicateLast(
+      parsed.debtRepayments ?? [],
+      (r) => `${r.debtId}::${r.month}`,
+    )
+    // Auto-repair: deduplicate goal deposits — one record per (goalId, month).
+    const goalDeposits = deduplicateLast(
+      parsed.goalDeposits ?? [],
+      (d) => `${d.goalId}::${d.month}`,
+    )
+    // Recompute currentBalance for each debt from the deduplicated repayment history.
+    const debts = (parsed.debts ?? []).map((debt) => {
+      const totalPaid = debtRepayments
+        .filter((r) => r.debtId === debt.id)
+        .reduce((sum, r) => sum + r.amountPaid, 0)
+      return { ...debt, currentBalance: Math.max(0, debt.originalAmount - totalPaid) }
+    })
+    // Recompute currentAmount for each goal from the deduplicated deposit history.
+    const goals = (parsed.goals ?? []).map((goal) => {
+      const totalDeposited = goalDeposits
+        .filter((d) => d.goalId === goal.id)
+        .reduce((sum, d) => sum + d.amount, 0)
+      return { ...goal, currentAmount: totalDeposited }
+    })
+    return { ...parsed, settings, debts, goals, debtRepayments, goalDeposits }
   } catch {
     return getDefaultData()
   }
+}
+
+/** Keep the last occurrence of each key (most recent write wins). */
+function deduplicateLast<T>(arr: T[], key: (item: T) => string): T[] {
+  const map = new Map<string, T>()
+  for (const item of arr) map.set(key(item), item)
+  return Array.from(map.values())
 }
 
 export function saveData(data: AppData): void {

@@ -103,6 +103,58 @@ describe('loadData / saveData / clearData', () => {
     const data = loadData()
     expect(data.salary).toEqual([])
   })
+
+  it('auto-repairs duplicate debt repayments for the same month — keeps last entry', () => {
+    // Simulate corrupted data: two repayments for the same debt+month
+    const corruptedData: AppData = {
+      ...getDefaultData(),
+      debts: [{ ...DEBT, currentBalance: DEBT.originalAmount }],
+      debtRepayments: [
+        { month: '2025-01', debtId: 'd1', amountPaid: 10000, balanceAfter: 70000 },
+        { month: '2025-01', debtId: 'd1', amountPaid: 10000, balanceAfter: 60000 }, // duplicate
+      ],
+    }
+    localStorage.setItem('finance-tracker-data', JSON.stringify(corruptedData))
+    const data = loadData()
+    // Should deduplicate to 1 record
+    expect(data.debtRepayments).toHaveLength(1)
+    expect(data.debtRepayments[0].amountPaid).toBe(10000)
+    // Balance recomputed from single deduplicated repayment: 80000 - 10000
+    expect(data.debts[0].currentBalance).toBe(70000)
+  })
+
+  it('auto-repairs duplicate goal deposits for the same month — keeps last entry', () => {
+    const corruptedData: AppData = {
+      ...getDefaultData(),
+      goals: [{ ...GOAL, currentAmount: 0 }],
+      goalDeposits: [
+        { month: '2025-01', goalId: 'g1', amount: 20000 },
+        { month: '2025-01', goalId: 'g1', amount: 20000 }, // duplicate
+      ],
+    }
+    localStorage.setItem('finance-tracker-data', JSON.stringify(corruptedData))
+    const data = loadData()
+    // Should deduplicate to 1 record
+    expect(data.goalDeposits).toHaveLength(1)
+    // currentAmount recomputed from single deposit
+    expect(data.goals[0].currentAmount).toBe(20000)
+  })
+
+  it('auto-repair preserves legitimate multi-month repayments', () => {
+    const baseData: AppData = {
+      ...getDefaultData(),
+      debts: [{ ...DEBT, currentBalance: DEBT.originalAmount }],
+      debtRepayments: [
+        { month: '2025-01', debtId: 'd1', amountPaid: 10000, balanceAfter: 0 },
+        { month: '2025-02', debtId: 'd1', amountPaid: 10000, balanceAfter: 0 },
+      ],
+    }
+    localStorage.setItem('finance-tracker-data', JSON.stringify(baseData))
+    const data = loadData()
+    expect(data.debtRepayments).toHaveLength(2)
+    // Balance = 80000 - 10000 - 10000
+    expect(data.debts[0].currentBalance).toBe(60000)
+  })
 })
 
 // ─── Salary ───────────────────────────────────────────────────────────────────
