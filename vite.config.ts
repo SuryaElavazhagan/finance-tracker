@@ -5,7 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: './',
+  base: '/finance-tracker/',
   plugins: [
     tailwindcss(),
     react(),
@@ -20,8 +20,8 @@ export default defineConfig({
         background_color: '#0f172a',
         display: 'standalone',
         orientation: 'portrait',
-        scope: '/',
-        start_url: '/',
+        scope: '/finance-tracker/',
+        start_url: '/finance-tracker/',
         icons: [
           {
             src: 'pwa-192x192.png',
