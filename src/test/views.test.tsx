@@ -387,7 +387,7 @@ describe('DebtsView (extended)', () => {
     // Enter repayment amount — label is "Amount paid (₹)" for INR debt
     const amountInput = screen.getByLabelText('Amount paid (₹)')
     fireEvent.change(amountInput, { target: { value: '10000' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Record' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Record repayment' }))
     // Balance should update — card still visible
     expect(screen.getByText('HDFC Card')).toBeInTheDocument()
   })

@@ -110,26 +110,22 @@ export function DebtsView() {
 
             {isExpanded && (
               <div className="mt-3 space-y-3 border-t border-slate-700 pt-3">
-                <div className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <LabeledInput
-                      label="Month (YYYY-MM)"
-                      type="month"
-                      value={repayMonths[debt.id] ?? new Date().toISOString().slice(0, 7)}
-                      onChange={(e) => setRepayMonths((m) => ({ ...m, [debt.id]: e.target.value }))}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <LabeledInput
-                      label={`Amount paid (${debt.currency === 'JPY' ? '¥' : '₹'})`}
-                      type="number"
-                      value={repayAmounts[debt.id] ?? ''}
-                      onChange={(e) => setRepayAmounts((a) => ({ ...a, [debt.id]: e.target.value }))}
-                      placeholder={String(debt.monthlyRepayment)}
-                    />
-                  </div>
-                  <Button onClick={() => handleAddRepayment(debt)} className="mb-0">
-                    Record
+                <div className="space-y-2">
+                  <LabeledInput
+                    label="Month"
+                    type="month"
+                    value={repayMonths[debt.id] ?? new Date().toISOString().slice(0, 7)}
+                    onChange={(e) => setRepayMonths((m) => ({ ...m, [debt.id]: e.target.value }))}
+                  />
+                  <LabeledInput
+                    label={`Amount paid (${debt.currency === 'JPY' ? '¥' : '₹'})`}
+                    type="number"
+                    value={repayAmounts[debt.id] ?? ''}
+                    onChange={(e) => setRepayAmounts((a) => ({ ...a, [debt.id]: e.target.value }))}
+                    placeholder={String(debt.monthlyRepayment)}
+                  />
+                  <Button onClick={() => handleAddRepayment(debt)} className="w-full">
+                    Record repayment
                   </Button>
                 </div>
 
@@ -139,9 +135,8 @@ export function DebtsView() {
                     <div className="space-y-1 max-h-32 overflow-y-auto">
                       {[...history].sort((a, b) => b.month.localeCompare(a.month)).map((r, i) => (
                         <div key={i} className="flex justify-between text-xs text-slate-400">
-                           <span>{r.month}</span>
-                           <span>{p(r.amountPaid, debt.currency)}</span>
-                           <span className="text-slate-600">bal: {p(r.balanceAfter, debt.currency)}</span>
+                          <span>{r.month}</span>
+                          <span>{p(r.amountPaid, debt.currency)}</span>
                         </div>
                       ))}
                     </div>
