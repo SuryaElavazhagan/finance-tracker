@@ -81,6 +81,8 @@ export interface GoalDeposit {
 
 export interface Settings {
   defaultRemittanceJPY: number
+  openingBalanceJPY: number
+  openingBalanceINR: number
 }
 
 export interface Meta {

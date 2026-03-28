@@ -62,6 +62,9 @@ export function SummaryView() {
       {/* JPY block */}
       <Card>
         <h3 className="text-sm font-semibold text-sky-400 mb-3">JPY</h3>
+        {data.settings.openingBalanceJPY > 0 && (
+          <Row label="Opening balance" value={m(data.settings.openingBalanceJPY, 'JPY')} />
+        )}
         <Row label="Income" value={m(summary.jpyIncome, 'JPY')} />
         <Row label="Recurring bills" value={`− ${m(summary.jpyCommitmentTotal, 'JPY')}`} sub />
         <Row label="Debt repayments" value={`− ${m(summary.jpyDebtTotal, 'JPY')}`} sub />
@@ -70,14 +73,17 @@ export function SummaryView() {
         <div className="border-t border-slate-700 my-2" />
         <Row
           label="Remaining"
-          value={m(Math.max(0, summary.jpyRemaining), 'JPY')}
-          highlight={summary.jpyRemaining >= 0}
+          value={m(Math.max(0, summary.jpyRemaining + data.settings.openingBalanceJPY), 'JPY')}
+          highlight={summary.jpyRemaining + data.settings.openingBalanceJPY >= 0}
         />
       </Card>
 
       {/* INR block */}
       <Card>
         <h3 className="text-sm font-semibold text-violet-400 mb-3">INR</h3>
+        {data.settings.openingBalanceINR > 0 && (
+          <Row label="Opening balance" value={m(data.settings.openingBalanceINR, 'INR')} />
+        )}
         <Row label="Remittance received" value={m(summary.inrInflow, 'INR')} />
         <Row label="Recurring bills" value={`− ${m(summary.inrCommitmentTotal, 'INR')}`} sub />
         <Row label="Debt repayments" value={`− ${m(summary.inrDebtTotal, 'INR')}`} sub />
@@ -85,8 +91,8 @@ export function SummaryView() {
         <div className="border-t border-slate-700 my-2" />
         <Row
           label="Remaining"
-          value={m(Math.max(0, summary.inrRemaining), 'INR')}
-          highlight={summary.inrRemaining >= 0}
+          value={m(Math.max(0, summary.inrRemaining + data.settings.openingBalanceINR), 'INR')}
+          highlight={summary.inrRemaining + data.settings.openingBalanceINR >= 0}
         />
       </Card>
 

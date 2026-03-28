@@ -28,6 +28,8 @@ export function getDefaultData(): AppData {
     goalDeposits: [],
     settings: {
       defaultRemittanceJPY: 50000,
+      openingBalanceJPY: 0,
+      openingBalanceINR: 0,
     },
     meta: {
       version: SCHEMA_VERSION,
@@ -41,8 +43,14 @@ export function loadData(): AppData {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return getDefaultData()
     const parsed = JSON.parse(raw) as AppData
-    // Future migrations: check parsed.meta.version
-    return parsed
+    // Migrate settings fields added after initial release
+    const settings: Settings = {
+      defaultRemittanceJPY: 50000,
+      openingBalanceJPY: 0,
+      openingBalanceINR: 0,
+      ...(parsed.settings as Partial<Settings>),
+    }
+    return { ...parsed, settings }
   } catch {
     return getDefaultData()
   }

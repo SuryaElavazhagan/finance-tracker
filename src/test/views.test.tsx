@@ -10,7 +10,7 @@ import { ExportImportView } from '../views/ExportImportView'
 import { TrendsView } from '../views/TrendsView'
 import { CheckInView } from '../views/CheckInView'
 import {
-  saveData, getDefaultData, addDebt, addGoal, upsertSalary, upsertRemittance,
+  saveData, loadData, getDefaultData, addDebt, addGoal, upsertSalary, upsertRemittance,
   addCommitment,
 } from '../store/storage'
 import type { Debt, Goal, Commitment } from '../types'
@@ -432,7 +432,8 @@ describe('SettingsView (extended)', () => {
     renderWithProvider(<SettingsView />)
     const input = screen.getByLabelText('Default monthly remittance (¥)')
     fireEvent.change(input, { target: { value: '60000' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    // Two Save buttons exist (opening balance + remittance); target the remittance one
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save' })[1])
     expect(screen.getByText(/¥60,000/)).toBeInTheDocument()
   })
 
@@ -619,5 +620,44 @@ describe('CheckInView (with data)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Finish & View Summary/i }))
     // step 6 summary
     expect(screen.getByText(/Check-in complete/i)).toBeInTheDocument()
+  })
+})
+
+// ─── Opening Balance ──────────────────────────────────────────────────────────
+
+describe('Opening Balance', () => {
+  it('saves opening balances from SettingsView', () => {
+    renderWithProvider(<SettingsView />)
+    fireEvent.change(screen.getByLabelText('JPY balance (¥)'), { target: { value: '800000' } })
+    fireEvent.change(screen.getByLabelText('INR balance (₹)'), { target: { value: '120000' } })
+    // First Save button belongs to opening balance section
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save' })[0])
+    const saved = loadData()
+    expect(saved.settings.openingBalanceJPY).toBe(800000)
+    expect(saved.settings.openingBalanceINR).toBe(120000)
+  })
+
+  it('shows opening balance row in SummaryView when non-zero', () => {
+    let data = getDefaultData()
+    data = { ...data, settings: { ...data.settings, openingBalanceJPY: 500000, openingBalanceINR: 80000 } }
+    saveData(data)
+    renderWithProvider(<SummaryView />)
+    expect(screen.getAllByText('Opening balance').length).toBe(2)
+  })
+
+  it('does not show opening balance row when zero', () => {
+    renderWithProvider(<SummaryView />)
+    expect(screen.queryByText('Opening balance')).not.toBeInTheDocument()
+  })
+
+  it('loadData migrates missing opening balance fields to 0', () => {
+    // Simulate old data without opening balance fields
+    const old = getDefaultData()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const stripped: any = { ...old, settings: { defaultRemittanceJPY: 50000 } }
+    localStorage.setItem('finance-tracker-data', JSON.stringify(stripped))
+    const migrated = loadData()
+    expect(migrated.settings.openingBalanceJPY).toBe(0)
+    expect(migrated.settings.openingBalanceINR).toBe(0)
   })
 })

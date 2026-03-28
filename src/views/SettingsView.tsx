@@ -28,6 +28,12 @@ export function SettingsView() {
   const [defaultRemittance, setDefaultRemittance] = useState(
     String(data.settings.defaultRemittanceJPY),
   )
+  const [openingJPY, setOpeningJPY] = useState(
+    String(data.settings.openingBalanceJPY),
+  )
+  const [openingINR, setOpeningINR] = useState(
+    String(data.settings.openingBalanceINR),
+  )
 
   function saveDefaultRemittance() {
     const val = Number(defaultRemittance)
@@ -36,9 +42,47 @@ export function SettingsView() {
     }
   }
 
+  function saveOpeningBalances() {
+    const jpy = Number(openingJPY)
+    const inr = Number(openingINR)
+    if (!isNaN(jpy) && !isNaN(inr) && jpy >= 0 && inr >= 0) {
+      update(updateSettings(data, { ...data.settings, openingBalanceJPY: jpy, openingBalanceINR: inr }))
+    }
+  }
+
   return (
     <div className="max-w-lg mx-auto p-4 space-y-6">
       <h1 className="text-lg font-semibold text-slate-100">Settings</h1>
+
+      {/* Opening balances */}
+      <Card className="space-y-3">
+        <SectionTitle>Opening Bank Balance</SectionTitle>
+        <p className="text-xs text-slate-500">
+          Your bank balance when you started tracking. Used as the starting point in summaries.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <LabeledInput
+            label="JPY balance (¥)"
+            type="number"
+            value={openingJPY}
+            onChange={(e) => setOpeningJPY(e.target.value)}
+            placeholder="e.g. 500000"
+          />
+          <LabeledInput
+            label="INR balance (₹)"
+            type="number"
+            value={openingINR}
+            onChange={(e) => setOpeningINR(e.target.value)}
+            placeholder="e.g. 100000"
+          />
+        </div>
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-slate-500">
+            Current: {fmtPrivate(data.settings.openingBalanceJPY, 'JPY', hidden)} · {fmtPrivate(data.settings.openingBalanceINR, 'INR', hidden)}
+          </p>
+          <Button onClick={saveOpeningBalances}>Save</Button>
+        </div>
+      </Card>
 
       {/* Default remittance */}
       <Card className="space-y-3">
