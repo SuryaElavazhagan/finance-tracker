@@ -155,6 +155,30 @@ describe('loadData / saveData / clearData', () => {
     // Balance = 80000 - 10000 - 10000
     expect(data.debts[0].currentBalance).toBe(60000)
   })
+
+  it('auto-repair preserves user-entered currentBalance when no repayment records exist', () => {
+    // User added a debt mid-way through: original=80000, current=40000, no repayment records yet
+    const baseData: AppData = {
+      ...getDefaultData(),
+      debts: [{ ...DEBT, originalAmount: 80000, currentBalance: 40000 }],
+      debtRepayments: [],
+    }
+    localStorage.setItem('finance-tracker-data', JSON.stringify(baseData))
+    const data = loadData()
+    // Must NOT overwrite the user-entered currentBalance to 80000
+    expect(data.debts[0].currentBalance).toBe(40000)
+  })
+
+  it('auto-repair preserves user-entered goal currentAmount when no deposit records exist', () => {
+    const baseData: AppData = {
+      ...getDefaultData(),
+      goals: [{ ...GOAL, currentAmount: 75000 }],
+      goalDeposits: [],
+    }
+    localStorage.setItem('finance-tracker-data', JSON.stringify(baseData))
+    const data = loadData()
+    expect(data.goals[0].currentAmount).toBe(75000)
+  })
 })
 
 // ─── Salary ───────────────────────────────────────────────────────────────────

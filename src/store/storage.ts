@@ -61,18 +61,21 @@ export function loadData(): AppData {
       parsed.goalDeposits ?? [],
       (d) => `${d.goalId}::${d.month}`,
     )
-    // Recompute currentBalance for each debt from the deduplicated repayment history.
+    // Recompute currentBalance for each debt from the deduplicated repayment history,
+    // but only when repayment records exist. If there are none, the user-entered
+    // currentBalance (which may differ from originalAmount) is preserved as-is.
     const debts = (parsed.debts ?? []).map((debt) => {
-      const totalPaid = debtRepayments
-        .filter((r) => r.debtId === debt.id)
-        .reduce((sum, r) => sum + r.amountPaid, 0)
+      const repayments = debtRepayments.filter((r) => r.debtId === debt.id)
+      if (repayments.length === 0) return debt
+      const totalPaid = repayments.reduce((sum, r) => sum + r.amountPaid, 0)
       return { ...debt, currentBalance: Math.max(0, debt.originalAmount - totalPaid) }
     })
-    // Recompute currentAmount for each goal from the deduplicated deposit history.
+    // Recompute currentAmount for each goal from the deduplicated deposit history,
+    // but only when deposit records exist. If there are none, the stored value is preserved.
     const goals = (parsed.goals ?? []).map((goal) => {
-      const totalDeposited = goalDeposits
-        .filter((d) => d.goalId === goal.id)
-        .reduce((sum, d) => sum + d.amount, 0)
+      const deposits = goalDeposits.filter((d) => d.goalId === goal.id)
+      if (deposits.length === 0) return goal
+      const totalDeposited = deposits.reduce((sum, d) => sum + d.amount, 0)
       return { ...goal, currentAmount: totalDeposited }
     })
     return { ...parsed, settings, debts, goals, debtRepayments, goalDeposits }
