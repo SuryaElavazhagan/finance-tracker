@@ -109,13 +109,13 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 
 export function LabeledInput({ label, ...props }: InputProps) {
   return (
-    <label className="flex flex-col gap-1">
+    <label className="flex flex-col gap-1 w-full min-w-0">
       <span className="text-xs text-slate-400">{label}</span>
       <input
         {...props}
         className={
           'bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 ' +
-          'text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 w-full ' +
+          'text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 w-full min-w-0 ' +
           (props.className ?? '')
         }
       />

@@ -133,7 +133,7 @@ export function DebtsView() {
             </div>
 
             {isExpanded && (
-              <div className="mt-3 space-y-3 border-t border-slate-700 pt-3">
+              <div className="mt-3 space-y-3 border-t border-slate-700 pt-3 overflow-hidden">
                 {/* Edit / Delete actions */}
                 <div className="flex gap-2">
                   <Button
