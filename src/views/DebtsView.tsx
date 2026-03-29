@@ -4,17 +4,19 @@ import { usePrivacy } from '../hooks/usePrivacy'
 import { computeDebtMetrics } from '../store/storage'
 import { fmtPrivate, Card, ProgressBar, Badge, Button, LabeledInput, LabeledSelect, SectionTitle } from '../components/ui'
 import { v4 } from '../utils/uuid'
-import { addDebt, updateDebt, upsertDebtRepayment } from '../store/storage'
+import { addDebt, updateDebt, deleteDebt, upsertDebtRepayment } from '../store/storage'
 import type { Debt, DebtType, Currency } from '../types'
-import { Plus, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, ChevronDown, ChevronUp, Pencil, Trash2 } from 'lucide-react'
 
 export function DebtsView() {
   const { data, update } = useAppData()
   const { hidden } = usePrivacy()
   const [showForm, setShowForm] = useState(false)
+  const [editingDebt, setEditingDebt] = useState<Debt | null>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [repayMonths, setRepayMonths] = useState<Record<string, string>>({})
   const [repayAmounts, setRepayAmounts] = useState<Record<string, string>>({})
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   const activeDebts = data.debts.filter((d) => d.status === 'active')
   const clearedDebts = data.debts.filter((d) => d.status === 'cleared')
@@ -41,23 +43,40 @@ export function DebtsView() {
     setRepayAmounts((a) => ({ ...a, [debt.id]: '' }))
   }
 
+  function handleDelete(id: string) {
+    update(deleteDebt(data, id))
+    setConfirmDelete(null)
+    setExpanded(null)
+  }
+
   return (
     <div className="max-w-lg mx-auto p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-slate-100">Debts</h1>
-        <Button variant="secondary" onClick={() => setShowForm((v) => !v)}>
+        <Button variant="secondary" onClick={() => { setShowForm((v) => !v); setEditingDebt(null) }}>
           <Plus size={14} className="inline mr-1" />
           Add Debt
         </Button>
       </div>
 
-      {showForm && (
-        <AddDebtForm
-          onAdd={(debt) => {
+      {showForm && !editingDebt && (
+        <DebtForm
+          onSave={(debt) => {
             update(addDebt(data, debt))
             setShowForm(false)
           }}
           onCancel={() => setShowForm(false)}
+        />
+      )}
+
+      {editingDebt && (
+        <DebtForm
+          initial={editingDebt}
+          onSave={(debt) => {
+            update(updateDebt(data, debt))
+            setEditingDebt(null)
+          }}
+          onCancel={() => setEditingDebt(null)}
         />
       )}
 
@@ -73,7 +92,7 @@ export function DebtsView() {
         </Card>
       </div>
 
-      {activeDebts.length === 0 && !showForm && (
+      {activeDebts.length === 0 && !showForm && !editingDebt && (
         <p className="text-slate-500 text-sm text-center py-8">No active debts. Great!</p>
       )}
 
@@ -81,23 +100,28 @@ export function DebtsView() {
         const m = computeDebtMetrics(debt)
         const isExpanded = expanded === debt.id
         const history = data.debtRepayments.filter((r) => r.debtId === debt.id)
+        const isConfirming = confirmDelete === debt.id
         return (
           <Card key={debt.id}>
             <div
               className="flex items-start justify-between cursor-pointer"
               onClick={() => setExpanded(isExpanded ? null : debt.id)}
             >
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className="text-sm font-medium text-slate-200">{debt.name}</span>
                   <Badge variant="muted">{debt.type.replace('_', ' ')}</Badge>
                   <Badge>{debt.currency}</Badge>
                 </div>
                 <p className="text-xs text-slate-400">
-                  {p(debt.currentBalance, debt.currency)} remaining of {p(debt.originalAmount, debt.currency)}
+                  {p(debt.currentBalance, debt.currency)} remaining
+                  {' · '}
+                  {p(m.paidOff, debt.currency)} paid
+                  {' of '}
+                  {p(debt.originalAmount, debt.currency)}
                 </p>
               </div>
-              {isExpanded ? <ChevronUp size={16} className="text-slate-500 mt-1" /> : <ChevronDown size={16} className="text-slate-500 mt-1" />}
+              {isExpanded ? <ChevronUp size={16} className="text-slate-500 mt-1 shrink-0" /> : <ChevronDown size={16} className="text-slate-500 mt-1 shrink-0" />}
             </div>
 
             <ProgressBar percent={m.percentPaid} className="mt-2" />
@@ -110,6 +134,44 @@ export function DebtsView() {
 
             {isExpanded && (
               <div className="mt-3 space-y-3 border-t border-slate-700 pt-3">
+                {/* Edit / Delete actions */}
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    className="flex-1 flex items-center justify-center gap-1"
+                    onClick={(e) => { e.stopPropagation(); setEditingDebt(debt); setShowForm(false); setExpanded(null) }}
+                  >
+                    <Pencil size={13} />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="danger"
+                    className="flex-1 flex items-center justify-center gap-1"
+                    onClick={(e) => { e.stopPropagation(); setConfirmDelete(debt.id) }}
+                  >
+                    <Trash2 size={13} />
+                    Delete
+                  </Button>
+                </div>
+
+                {/* Delete confirmation */}
+                {isConfirming && (
+                  <div className="bg-slate-700/60 rounded-lg p-3 space-y-2">
+                    <p className="text-xs text-slate-300">
+                      Delete <span className="font-medium text-slate-100">{debt.name}</span> and all its repayment history?
+                    </p>
+                    <div className="flex gap-2">
+                      <Button variant="secondary" className="flex-1" onClick={() => setConfirmDelete(null)}>
+                        Cancel
+                      </Button>
+                      <Button variant="danger" className="flex-1" onClick={() => handleDelete(debt.id)}>
+                        Yes, delete
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Record repayment */}
                 <div className="space-y-2">
                   <LabeledInput
                     label="Month"
@@ -129,6 +191,7 @@ export function DebtsView() {
                   </Button>
                 </div>
 
+                {/* Repayment history */}
                 {history.length > 0 && (
                   <div>
                     <p className="text-xs text-slate-500 mb-1">Repayment history</p>
@@ -151,55 +214,86 @@ export function DebtsView() {
       {clearedDebts.length > 0 && (
         <div>
           <SectionTitle>Cleared Debts</SectionTitle>
-          {clearedDebts.map((debt) => (
-            <Card key={debt.id} className="opacity-60">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-400">{debt.name}</span>
-                <Badge variant="success">Cleared</Badge>
-              </div>
-              <p className="text-xs text-slate-500 mt-1">
-                Original: {p(debt.originalAmount, debt.currency)}
-              </p>
-            </Card>
-          ))}
+          {clearedDebts.map((debt) => {
+            const isConfirming = confirmDelete === debt.id
+            return (
+              <Card key={debt.id} className="opacity-70">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm text-slate-400">{debt.name}</span>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Original: {p(debt.originalAmount, debt.currency)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="success">Cleared</Badge>
+                    <button
+                      onClick={() => setConfirmDelete(debt.id)}
+                      className="p-1 text-slate-600 hover:text-red-400 transition-colors"
+                      aria-label={`Delete ${debt.name}`}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+                {isConfirming && (
+                  <div className="mt-2 bg-slate-700/60 rounded-lg p-3 space-y-2">
+                    <p className="text-xs text-slate-300">
+                      Delete <span className="font-medium text-slate-100">{debt.name}</span> and all its repayment history?
+                    </p>
+                    <div className="flex gap-2">
+                      <Button variant="secondary" className="flex-1" onClick={() => setConfirmDelete(null)}>
+                        Cancel
+                      </Button>
+                      <Button variant="danger" className="flex-1" onClick={() => handleDelete(debt.id)}>
+                        Yes, delete
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </Card>
+            )
+          })}
         </div>
       )}
     </div>
   )
 }
 
-function AddDebtForm({
-  onAdd,
+function DebtForm({
+  initial,
+  onSave,
   onCancel,
 }: {
-  onAdd: (d: Debt) => void
+  initial?: Debt
+  onSave: (d: Debt) => void
   onCancel: () => void
 }) {
-  const [name, setName] = useState('')
-  const [type, setType] = useState<DebtType>('emi')
-  const [currency, setCurrency] = useState<Currency>('INR')
-  const [original, setOriginal] = useState('')
-  const [balance, setBalance] = useState('')
-  const [repayment, setRepayment] = useState('')
+  const [name, setName] = useState(initial?.name ?? '')
+  const [type, setType] = useState<DebtType>(initial?.type ?? 'emi')
+  const [currency, setCurrency] = useState<Currency>(initial?.currency ?? 'INR')
+  const [original, setOriginal] = useState(String(initial?.originalAmount ?? ''))
+  const [balance, setBalance] = useState(String(initial?.currentBalance ?? ''))
+  const [repayment, setRepayment] = useState(String(initial?.monthlyRepayment ?? ''))
 
   function submit() {
     if (!name || !original) return
-    onAdd({
-      id: v4(),
+    onSave({
+      id: initial?.id ?? v4(),
       name,
       type,
       currency,
       originalAmount: Number(original),
       currentBalance: Number(balance || original),
       monthlyRepayment: Number(repayment) || 0,
-      startDate: new Date().toISOString().slice(0, 7),
-      status: 'active',
+      startDate: initial?.startDate ?? new Date().toISOString().slice(0, 7),
+      status: initial?.status ?? 'active',
     })
   }
 
   return (
     <Card className="space-y-3">
-      <h3 className="text-sm font-medium text-slate-300">New Debt</h3>
+      <h3 className="text-sm font-medium text-slate-300">{initial ? 'Edit Debt' : 'New Debt'}</h3>
       <LabeledInput label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. HDFC Credit Card" />
       <div className="grid grid-cols-2 gap-3">
         <LabeledSelect
@@ -229,7 +323,7 @@ function AddDebtForm({
       <LabeledInput label="Monthly repayment" type="number" value={repayment} onChange={(e) => setRepayment(e.target.value)} />
       <div className="flex gap-2 justify-end">
         <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-        <Button onClick={submit}>Add Debt</Button>
+        <Button onClick={submit}>{initial ? 'Save changes' : 'Add Debt'}</Button>
       </div>
     </Card>
   )

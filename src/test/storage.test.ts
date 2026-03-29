@@ -15,6 +15,7 @@ import {
   getCommitmentRecordsForMonth,
   addDebt,
   updateDebt,
+  deleteDebt,
   upsertDebtRepayment,
   getDebtRepaymentsForMonth,
   upsertMonthlySpend,
@@ -331,6 +332,31 @@ describe('updateDebt', () => {
     let data = addDebt(makeData(), DEBT)
     data = updateDebt(data, { ...DEBT, currentBalance: 30000 })
     expect(data.debts[0].currentBalance).toBe(30000)
+  })
+})
+
+describe('deleteDebt', () => {
+  it('removes the debt by id', () => {
+    let data = addDebt(makeData(), DEBT)
+    data = deleteDebt(data, 'd1')
+    expect(data.debts).toHaveLength(0)
+  })
+
+  it('also removes all repayment records for that debt', () => {
+    let data = addDebt(makeData(), DEBT)
+    data = upsertDebtRepayment(data, { month: '2025-01', debtId: 'd1', amountPaid: 10000, balanceAfter: 0 })
+    data = upsertDebtRepayment(data, { month: '2025-02', debtId: 'd1', amountPaid: 10000, balanceAfter: 0 })
+    data = deleteDebt(data, 'd1')
+    expect(data.debts).toHaveLength(0)
+    expect(data.debtRepayments).toHaveLength(0)
+  })
+
+  it('does not affect other debts', () => {
+    const d2: Debt = { ...DEBT, id: 'd2', name: 'Car Loan' }
+    let data = addDebt(addDebt(makeData(), DEBT), d2)
+    data = deleteDebt(data, 'd1')
+    expect(data.debts).toHaveLength(1)
+    expect(data.debts[0].id).toBe('d2')
   })
 })
 

@@ -184,6 +184,14 @@ export function updateDebt(data: AppData, debt: Debt): AppData {
   }
 }
 
+export function deleteDebt(data: AppData, id: string): AppData {
+  return {
+    ...data,
+    debts: data.debts.filter((d) => d.id !== id),
+    debtRepayments: data.debtRepayments.filter((r) => r.debtId !== id),
+  }
+}
+
 export function upsertDebtRepayment(data: AppData, repayment: DebtRepayment): AppData {
   // One record per (debtId, month) — replace if exists
   const existing = data.debtRepayments.findIndex(

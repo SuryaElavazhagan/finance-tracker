@@ -391,6 +391,61 @@ describe('DebtsView (extended)', () => {
     // Balance should update — card still visible
     expect(screen.getByText('HDFC Card')).toBeInTheDocument()
   })
+
+  it('shows paid amount alongside remaining on the card', () => {
+    seedDebt()
+    renderWithProvider(<DebtsView />)
+    // originalAmount=80000, currentBalance=40000 → paidOff=40000
+    expect(screen.getByText(/₹40,000 paid/)).toBeInTheDocument()
+  })
+
+  it('opens edit form pre-filled with debt values', () => {
+    seedDebt()
+    renderWithProvider(<DebtsView />)
+    fireEvent.click(screen.getByText('HDFC Card'))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    // The edit form heading should appear
+    expect(screen.getByText('Edit Debt')).toBeInTheDocument()
+    // Name field should be pre-filled
+    expect(screen.getByDisplayValue('HDFC Card')).toBeInTheDocument()
+  })
+
+  it('saves edited debt name', () => {
+    seedDebt()
+    renderWithProvider(<DebtsView />)
+    fireEvent.click(screen.getByText('HDFC Card'))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    const nameInput = screen.getByDisplayValue('HDFC Card')
+    fireEvent.change(nameInput, { target: { value: 'HDFC Platinum' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+    expect(screen.getByText('HDFC Platinum')).toBeInTheDocument()
+  })
+
+  it('shows delete confirmation before deleting', () => {
+    seedDebt()
+    renderWithProvider(<DebtsView />)
+    fireEvent.click(screen.getByText('HDFC Card'))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(screen.getByRole('button', { name: 'Yes, delete' })).toBeInTheDocument()
+  })
+
+  it('deletes a debt after confirmation', () => {
+    seedDebt()
+    renderWithProvider(<DebtsView />)
+    fireEvent.click(screen.getByText('HDFC Card'))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, delete' }))
+    expect(screen.queryByText('HDFC Card')).not.toBeInTheDocument()
+  })
+
+  it('cancels delete confirmation without removing debt', () => {
+    seedDebt()
+    renderWithProvider(<DebtsView />)
+    fireEvent.click(screen.getByText('HDFC Card'))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByText('HDFC Card')).toBeInTheDocument()
+  })
 })
 
 // ─── GoalsView (extended) ────────────────────────────────────────────────────
