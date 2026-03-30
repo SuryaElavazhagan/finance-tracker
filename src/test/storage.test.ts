@@ -328,10 +328,37 @@ describe('addDebt', () => {
 })
 
 describe('updateDebt', () => {
-  it('updates a debt by id', () => {
+  it('preserves user-entered currentBalance when no repayments exist', () => {
     let data = addDebt(makeData(), DEBT)
+    // No repayments recorded — user may have entered a mid-track balance
     data = updateDebt(data, { ...DEBT, currentBalance: 30000 })
     expect(data.debts[0].currentBalance).toBe(30000)
+  })
+
+  it('recomputes currentBalance from originalAmount minus repayments when repayments exist', () => {
+    let data = addDebt(makeData(), DEBT)
+    // Record two repayments totalling 25000
+    data = upsertDebtRepayment(data, { month: '2025-01', debtId: 'd1', amountPaid: 15000, balanceAfter: 0 })
+    data = upsertDebtRepayment(data, { month: '2025-02', debtId: 'd1', amountPaid: 10000, balanceAfter: 0 })
+    // Now edit the debt — the caller passes an arbitrary currentBalance, but it should be ignored
+    // because repayments exist; balance must be recomputed from originalAmount - totalPaid
+    data = updateDebt(data, { ...DEBT, originalAmount: 80000, currentBalance: 99999 })
+    expect(data.debts[0].currentBalance).toBe(55000) // 80000 - 25000
+  })
+
+  it('recomputes using the edited originalAmount, not the old one', () => {
+    let data = addDebt(makeData(), DEBT)
+    data = upsertDebtRepayment(data, { month: '2025-01', debtId: 'd1', amountPaid: 10000, balanceAfter: 0 })
+    // User corrects originalAmount from 80000 to 90000
+    data = updateDebt(data, { ...DEBT, originalAmount: 90000 })
+    expect(data.debts[0].currentBalance).toBe(80000) // 90000 - 10000
+  })
+
+  it('clamps currentBalance to 0 when overpaid', () => {
+    let data = addDebt(makeData(), DEBT)
+    data = upsertDebtRepayment(data, { month: '2025-01', debtId: 'd1', amountPaid: 100000, balanceAfter: 0 })
+    data = updateDebt(data, { ...DEBT })
+    expect(data.debts[0].currentBalance).toBe(0) // clamped, not negative
   })
 })
 

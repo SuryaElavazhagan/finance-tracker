@@ -178,9 +178,17 @@ export function addDebt(data: AppData, debt: Debt): AppData {
 }
 
 export function updateDebt(data: AppData, debt: Debt): AppData {
+  // Recompute currentBalance from the (possibly edited) originalAmount minus all
+  // existing repayments. This keeps the stored value consistent with what loadData()
+  // will compute on the next load, so edits are not silently overwritten.
+  const repayments = data.debtRepayments.filter((r) => r.debtId === debt.id)
+  const totalPaid = repayments.reduce((sum, r) => sum + r.amountPaid, 0)
+  const currentBalance = repayments.length > 0
+    ? Math.max(0, debt.originalAmount - totalPaid)
+    : debt.currentBalance
   return {
     ...data,
-    debts: data.debts.map((d) => (d.id === debt.id ? debt : d)),
+    debts: data.debts.map((d) => (d.id === debt.id ? { ...debt, currentBalance } : d)),
   }
 }
 
