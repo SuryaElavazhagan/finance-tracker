@@ -72,6 +72,7 @@ export function DebtsView() {
       {editingDebt && (
         <DebtForm
           initial={editingDebt}
+          hasRepayments={data.debtRepayments.some((r) => r.debtId === editingDebt.id)}
           onSave={(debt) => {
             update(updateDebt(data, debt))
             setEditingDebt(null)
@@ -262,10 +263,13 @@ export function DebtsView() {
 
 function DebtForm({
   initial,
+  hasRepayments = false,
   onSave,
   onCancel,
 }: {
   initial?: Debt
+  /** When true, currentBalance is derived from repayment history and cannot be manually edited. */
+  hasRepayments?: boolean
   onSave: (d: Debt) => void
   onCancel: () => void
 }) {
@@ -276,6 +280,11 @@ function DebtForm({
   const [balance, setBalance] = useState(String(initial?.currentBalance ?? ''))
   const [repayment, setRepayment] = useState(String(initial?.monthlyRepayment ?? ''))
 
+  // When repayment records exist the balance is always computed from history.
+  // Editing it here would be immediately overwritten by updateDebt(), so we
+  // hide the field and show the derived value as read-only instead.
+  const balanceIsLocked = hasRepayments
+
   function submit() {
     if (!name || !original) return
     onSave({
@@ -284,7 +293,9 @@ function DebtForm({
       type,
       currency,
       originalAmount: Number(original),
-      currentBalance: Number(balance || original),
+      // Pass through the existing currentBalance when locked; updateDebt() will
+      // recompute it from repayments anyway, but we must not pass a stale value.
+      currentBalance: balanceIsLocked ? (initial?.currentBalance ?? Number(original)) : Number(balance || original),
       monthlyRepayment: Number(repayment) || 0,
       startDate: initial?.startDate ?? new Date().toISOString().slice(0, 7),
       status: initial?.status ?? 'active',
@@ -318,9 +329,22 @@ function DebtForm({
       </div>
       <div className="grid grid-cols-2 gap-3">
         <LabeledInput label="Original amount" type="number" value={original} onChange={(e) => setOriginal(e.target.value)} />
-        <LabeledInput label="Current balance" type="number" value={balance} onChange={(e) => setBalance(e.target.value)} placeholder="Same as original" />
+        {balanceIsLocked ? (
+          <div className="flex flex-col gap-1 w-full min-w-0">
+            <span className="text-xs text-slate-400">Current balance</span>
+            <p className="text-sm text-slate-300 py-1">
+              {initial?.currentBalance?.toLocaleString() ?? '—'}
+              <span className="text-xs text-slate-500 ml-1">(from history)</span>
+            </p>
+          </div>
+        ) : (
+          <LabeledInput label="Current balance" type="number" value={balance} onChange={(e) => setBalance(e.target.value)} placeholder="Same as original" />
+        )}
       </div>
       <LabeledInput label="Monthly repayment" type="number" value={repayment} onChange={(e) => setRepayment(e.target.value)} />
+      {balanceIsLocked && (
+        <p className="text-xs text-slate-500">Balance is calculated from repayment history and updates automatically.</p>
+      )}
       <div className="flex gap-2 justify-end">
         <Button variant="secondary" onClick={onCancel}>Cancel</Button>
         <Button onClick={submit}>{initial ? 'Save changes' : 'Add Debt'}</Button>
