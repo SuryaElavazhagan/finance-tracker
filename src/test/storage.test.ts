@@ -120,8 +120,8 @@ describe('loadData / saveData / clearData', () => {
     // Should deduplicate to 1 record
     expect(data.debtRepayments).toHaveLength(1)
     expect(data.debtRepayments[0].amountPaid).toBe(10000)
-    // Balance recomputed from single deduplicated repayment: 80000 - 10000
-    expect(data.debts[0].currentBalance).toBe(70000)
+    // currentBalance is NOT recomputed by loadData — it stays as stored
+    expect(data.debts[0].currentBalance).toBe(DEBT.originalAmount)
   })
 
   it('auto-repairs duplicate goal deposits for the same month — keeps last entry', () => {
@@ -137,14 +137,14 @@ describe('loadData / saveData / clearData', () => {
     const data = loadData()
     // Should deduplicate to 1 record
     expect(data.goalDeposits).toHaveLength(1)
-    // currentAmount recomputed from single deposit
-    expect(data.goals[0].currentAmount).toBe(20000)
+    // currentAmount is NOT recomputed by loadData — it stays as stored
+    expect(data.goals[0].currentAmount).toBe(0)
   })
 
   it('auto-repair preserves legitimate multi-month repayments', () => {
     const baseData: AppData = {
       ...getDefaultData(),
-      debts: [{ ...DEBT, currentBalance: DEBT.originalAmount }],
+      debts: [{ ...DEBT, currentBalance: 60000 }],
       debtRepayments: [
         { month: '2025-01', debtId: 'd1', amountPaid: 10000, balanceAfter: 0 },
         { month: '2025-02', debtId: 'd1', amountPaid: 10000, balanceAfter: 0 },
@@ -153,12 +153,12 @@ describe('loadData / saveData / clearData', () => {
     localStorage.setItem('finance-tracker-data', JSON.stringify(baseData))
     const data = loadData()
     expect(data.debtRepayments).toHaveLength(2)
-    // Balance = 80000 - 10000 - 10000
+    // Balance is stored value — loadData does not recompute it
     expect(data.debts[0].currentBalance).toBe(60000)
   })
 
-  it('auto-repair preserves user-entered currentBalance when no repayment records exist', () => {
-    // User added a debt mid-way through: original=80000, current=40000, no repayment records yet
+  it('preserves user-entered currentBalance on load regardless of repayment records', () => {
+    // User manually set balance to 40000 even though history might differ
     const baseData: AppData = {
       ...getDefaultData(),
       debts: [{ ...DEBT, originalAmount: 80000, currentBalance: 40000 }],
@@ -166,11 +166,10 @@ describe('loadData / saveData / clearData', () => {
     }
     localStorage.setItem('finance-tracker-data', JSON.stringify(baseData))
     const data = loadData()
-    // Must NOT overwrite the user-entered currentBalance to 80000
     expect(data.debts[0].currentBalance).toBe(40000)
   })
 
-  it('auto-repair preserves user-entered goal currentAmount when no deposit records exist', () => {
+  it('preserves user-entered goal currentAmount on load', () => {
     const baseData: AppData = {
       ...getDefaultData(),
       goals: [{ ...GOAL, currentAmount: 75000 }],
@@ -328,37 +327,25 @@ describe('addDebt', () => {
 })
 
 describe('updateDebt', () => {
-  it('preserves user-entered currentBalance when no repayments exist', () => {
+  it('updates a debt by id — user-supplied values are saved as-is', () => {
     let data = addDebt(makeData(), DEBT)
-    // No repayments recorded — user may have entered a mid-track balance
     data = updateDebt(data, { ...DEBT, currentBalance: 30000 })
     expect(data.debts[0].currentBalance).toBe(30000)
   })
 
-  it('recomputes currentBalance from originalAmount minus repayments when repayments exist', () => {
-    let data = addDebt(makeData(), DEBT)
-    // Record two repayments totalling 25000
-    data = upsertDebtRepayment(data, { month: '2025-01', debtId: 'd1', amountPaid: 15000, balanceAfter: 0 })
-    data = upsertDebtRepayment(data, { month: '2025-02', debtId: 'd1', amountPaid: 10000, balanceAfter: 0 })
-    // Now edit the debt — the caller passes an arbitrary currentBalance, but it should be ignored
-    // because repayments exist; balance must be recomputed from originalAmount - totalPaid
-    data = updateDebt(data, { ...DEBT, originalAmount: 80000, currentBalance: 99999 })
-    expect(data.debts[0].currentBalance).toBe(55000) // 80000 - 25000
-  })
-
-  it('recomputes using the edited originalAmount, not the old one', () => {
+  it('saves user-entered currentBalance even when repayment records exist', () => {
     let data = addDebt(makeData(), DEBT)
     data = upsertDebtRepayment(data, { month: '2025-01', debtId: 'd1', amountPaid: 10000, balanceAfter: 0 })
-    // User corrects originalAmount from 80000 to 90000
-    data = updateDebt(data, { ...DEBT, originalAmount: 90000 })
-    expect(data.debts[0].currentBalance).toBe(80000) // 90000 - 10000
+    // User explicitly overrides balance to 99000 — this must be respected
+    data = updateDebt(data, { ...DEBT, currentBalance: 99000 })
+    expect(data.debts[0].currentBalance).toBe(99000)
   })
 
-  it('clamps currentBalance to 0 when overpaid', () => {
-    let data = addDebt(makeData(), DEBT)
-    data = upsertDebtRepayment(data, { month: '2025-01', debtId: 'd1', amountPaid: 100000, balanceAfter: 0 })
-    data = updateDebt(data, { ...DEBT })
-    expect(data.debts[0].currentBalance).toBe(0) // clamped, not negative
+  it('does not affect other debts', () => {
+    const d2: Debt = { ...DEBT, id: 'd2', name: 'Car Loan' }
+    let data = addDebt(addDebt(makeData(), DEBT), d2)
+    data = updateDebt(data, { ...DEBT, currentBalance: 30000 })
+    expect(data.debts.find((d) => d.id === 'd2')?.currentBalance).toBe(DEBT.currentBalance)
   })
 })
 

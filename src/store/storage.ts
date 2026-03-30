@@ -61,24 +61,11 @@ export function loadData(): AppData {
       parsed.goalDeposits ?? [],
       (d) => `${d.goalId}::${d.month}`,
     )
-    // Recompute currentBalance for each debt from the deduplicated repayment history,
-    // but only when repayment records exist. If there are none, the user-entered
-    // currentBalance (which may differ from originalAmount) is preserved as-is.
-    const debts = (parsed.debts ?? []).map((debt) => {
-      const repayments = debtRepayments.filter((r) => r.debtId === debt.id)
-      if (repayments.length === 0) return debt
-      const totalPaid = repayments.reduce((sum, r) => sum + r.amountPaid, 0)
-      return { ...debt, currentBalance: Math.max(0, debt.originalAmount - totalPaid) }
-    })
-    // Recompute currentAmount for each goal from the deduplicated deposit history,
-    // but only when deposit records exist. If there are none, the stored value is preserved.
-    const goals = (parsed.goals ?? []).map((goal) => {
-      const deposits = goalDeposits.filter((d) => d.goalId === goal.id)
-      if (deposits.length === 0) return goal
-      const totalDeposited = deposits.reduce((sum, d) => sum + d.amount, 0)
-      return { ...goal, currentAmount: totalDeposited }
-    })
-    return { ...parsed, settings, debts, goals, debtRepayments, goalDeposits }
+    // Note: currentBalance and currentAmount are NOT recomputed here.
+    // upsertDebtRepayment and upsertGoalDeposit keep these values correct at write
+    // time. Recomputing on load would silently overwrite any manual edits the user
+    // made via the edit form.
+    return { ...parsed, settings, debtRepayments, goalDeposits }
   } catch {
     return getDefaultData()
   }
@@ -178,17 +165,9 @@ export function addDebt(data: AppData, debt: Debt): AppData {
 }
 
 export function updateDebt(data: AppData, debt: Debt): AppData {
-  // Recompute currentBalance from the (possibly edited) originalAmount minus all
-  // existing repayments. This keeps the stored value consistent with what loadData()
-  // will compute on the next load, so edits are not silently overwritten.
-  const repayments = data.debtRepayments.filter((r) => r.debtId === debt.id)
-  const totalPaid = repayments.reduce((sum, r) => sum + r.amountPaid, 0)
-  const currentBalance = repayments.length > 0
-    ? Math.max(0, debt.originalAmount - totalPaid)
-    : debt.currentBalance
   return {
     ...data,
-    debts: data.debts.map((d) => (d.id === debt.id ? { ...debt, currentBalance } : d)),
+    debts: data.debts.map((d) => (d.id === debt.id ? debt : d)),
   }
 }
 
